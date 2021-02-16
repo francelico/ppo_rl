@@ -20,7 +20,33 @@ if __name__ == "__main__":
     pass
 
 class MultiEnv(VecEnvWrapper):
-    pass
+
+    def __init__(self, venv, device):
+        super().__init__(venv)
+        self.device = device
+
+    def reset(self):
+        obs = self.venv.reset()
+        obs = torch.from_numpy(obs).float().to(self.device)
+
+    def step_async(self, actions):
+        actions = actions.cpu().numpy()
+        self.venv.step_async(actions)
+
+    def step_wait(self):
+        obs, reward, done, info = self.venv.step_wait()
+        obs = torch.from_numpy(obs).float().to(self.device)
+        reward = torch.from_numpy(reward).unsqueeze(dim=1).float()
+        return obs, reward, done, info
+
+def make_env(gym_id, seed, idx):
+    env = gym.make(gym_id)
+    env = gym.wrappers.RecordEpisodeStatistics(env)
+    #! add video capture
+    env.seed(seed)
+    env.action_space.seed(seed)
+    env.observation_space.seed(seed)
+    return env
 
 class Agent(nn.Module):
     def __init__(self, envs):
